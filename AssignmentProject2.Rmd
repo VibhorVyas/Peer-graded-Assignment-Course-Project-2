@@ -1,0 +1,138 @@
+---
+title: "Assignment 2 Week 4"
+author: "VibhorVyas"
+date: "November 6, 2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(dplyr)
+
+```
+
+## Assignment 2 Week 4 
+
+```{r}
+plot <- function(names, totals, columns, main, colors){
+  colnames(totals) <- names
+  
+  par(las=2,mar=c(6,4,1,1))
+  barplot(totals, col=colors,main=main,cex.names  = 0.6,cex.axis = 0.6)
+  legend("topright", columns,fill=colors,bty = "n")
+}
+
+```
+## Reading Data
+
+```{r}
+repdataFdataFStormData_csv <- read_csv("C:/Workspace/CWorkspace/learning/Coursera/CourseraAssignements/ReproducableResearch/repdataFdataFStormData.csv.bz2")
+#View(repdataFdataFStormData_csv)
+colnames(repdataFdataFStormData_csv)
+event_types <- as.data.frame(table(repdataFdataFStormData_csv$EVTYPE))
+event_types <- event_types[order(event_types$Var1), ]
+## Separate data for Health and property so that those can be read and randered as plots after data formatting.
+
+health <- repdataFdataFStormData_csv[,(c(8,23:24))]
+property<-repdataFdataFStormData_csv[,c(8,25:28)]
+
+```
+
+## Including Plots
+Formatting the data and removing NA values
+```{r}
+table(property$PROPDMGEXP)
+table(property$CROPDMGEXP)
+
+property$PROPDMGEXP<-factor(property$PROPDMGEXP,levels=c("H","K","M","B","h","m","O"))
+property$PROPDMGEXP[is.na(property$PROPDMGEXP)] <- "O"
+
+property$CROPDMGEXP<-factor(property$CROPDMGEXP,levels=c("K","M","B","k","m","O"))
+property$CROPDMGEXP[is.na(property$CROPDMGEXP)] <- "O"
+
+property$PROPDMGEXP <- as.character(property$PROPDMGEXP)
+property$CROPDMGEXP <- as.character(property$CROPDMGEXP)
+
+```
+# Converting the values of Thousands, Millions and Billions. 
+
+```{r}
+
+property$PROPDMGMLT <- 0
+property$CROPDMGMLT <- 0
+
+property$PROPDMGMLT[grepl("h", property$PROPDMGEXP,ignore.case = TRUE)]<-100
+property$PROPDMGMLT[grepl("k", property$PROPDMGEXP,ignore.case = TRUE)]<-1000
+property$PROPDMGMLT[grepl("m", property$PROPDMGEXP,ignore.case = TRUE)]<-1000000
+property$PROPDMGMLT[grepl("b", property$PROPDMGEXP,ignore.case = TRUE)]<-1000000000
+property$PROPDMGMLT[grepl("o", property$PROPDMGEXP,ignore.case = TRUE)]<-1
+
+property$CROPDMGMLT[grepl("k", property$CROPDMGEXP,ignore.case = TRUE)]<-1000
+property$CROPDMGMLT[grepl("m", property$CROPDMGEXP,ignore.case = TRUE)]<-1000000
+property$CROPDMGMLT[grepl("b", property$CROPDMGEXP,ignore.case = TRUE)]<-1000000000
+property$CROPDMGMLT[grepl("o", property$CROPDMGEXP,ignore.case = TRUE)]<-1
+
+
+```
+Finding the property datamage and crop damage data. Also finding total daamage
+
+```{r}
+property$PROPDMG <- property$PROPDMG * property$PROPDMGMLT
+property$CROPDMG <- property$CROPDMG * property$CROPDMGMLT
+property$total <- property$PROPDMG + property$CROPDMG
+
+```
+Ditermin health impact by finding Fatalities and Injuries
+
+```{r}
+
+health.totals <- aggregate(cbind(FATALITIES,INJURIES) ~ EVTYPE, data = health, sum, na.rm=TRUE)
+health.totals$TOTAL <- health.totals$FATALITIES + health.totals$INJURIES
+health.totals <- health.totals[order(-health.totals$TOTAL), ]
+health.totals <- health.totals[1:25,]
+
+
+```
+Plotting the graph of health totals and Fatalities and Injuris
+```{r}
+plot(health.totals$EVTYPE,
+     as.matrix(t(health.totals[,c(-1,-4)])),
+     colors = c("blue","red"),
+     columns = c("Fatalities","Injuries"),
+     main = "Most Harmful Event Type in the United States")
+
+```
+## from the above graph its clear indicator that Tornedo is causing Maximum Injuries indicated in Red) and Fetalities (indicated in Blue)
+
+Finding economic impact 
+
+```{r}
+economic.total <- aggregate(cbind(PROPDMG,CROPDMG, total) ~ EVTYPE, data = property, sum, na.rm=TRUE)
+economic.crop <- economic.total[order(-economic.total$CROPDMG), ]
+economic.crop <- economic.crop[1:25,]
+
+economic.prop <- economic.total[order(-economic.total$PROPDMG), ]
+economic.prop <- economic.prop[1:25,]
+
+
+```
+plotting the graphs of corp damage and property damage due to weather
+
+```{r}
+plot(economic.prop$EVTYPE,
+     as.matrix(t(economic.prop[,c(-1,-3,-4)])),
+     colors = c("blue","red"),
+     columns = c("Property Damage"),
+     main = "Economic Impact - Property Damage")
+
+plot(economic.crop$EVTYPE,
+     as.matrix(t(economic.crop[,c(-1,-2,-4)])),
+     colors = c("blue","red"),
+     columns = c("Crop Damage"),
+     main = "Economic Impact - Crop Damage")
+
+```
+## From above graphs its clearly identified Draught is major cause of Crop damage and Flood is major cause of Property Damage.
